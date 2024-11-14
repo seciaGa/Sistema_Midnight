@@ -75,7 +75,7 @@ if (isset($_GET['id_cab_compra'])) {
 }
 
 
-// Obtener detalles según el id_det_compra especificado
+
 if (isset($_GET['id_det_compra'])) {
     $id_det_compra = $_GET['id_det_compra'];
     $conexion->query = "SELECT id_compra, id_cab_compra, id_producto, cantidad, precio_unitario 
