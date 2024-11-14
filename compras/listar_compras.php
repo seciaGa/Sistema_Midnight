@@ -78,8 +78,6 @@ if (isset($_GET['id_cab_compra'])) {
 // Obtener detalles según el id_det_compra especificado
 if (isset($_GET['id_det_compra'])) {
     $id_det_compra = $_GET['id_det_compra'];
-    
-    // Consulta filtrada por id_det_compra usando comillas simples para el parámetro
     $conexion->query = "SELECT id_compra, id_cab_compra, id_producto, cantidad, precio_unitario 
                         FROM tbl_det_compras 
                         WHERE id_compra = '$id_det_compra'";
@@ -98,13 +96,6 @@ if (isset($_GET['id_det_compra'])) {
     $detalles_compras = $conexion->get_records();
     $detalle = !empty($detalles_compras) ? $detalles_compras[0] : null;
 }
-
-// Ahora puedes usar los datos así:
-// echo $detalle['id_compra'];
-// echo $detalle['id_cab_compra'];
-// echo $detalle['id_producto'];
-// echo $detalle['cantidad'];
-// echo number_format($detalle['precio_unitario'], 2);
 ?>
 
 
