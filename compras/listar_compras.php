@@ -1,4 +1,3 @@
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <?php
 include_once '../config/server_connection.php';
 include_once '../utils/paginador.php';
@@ -40,6 +39,8 @@ if (!empty($buscar)) {
 $conexion->query = 'SELECT * FROM tbl_cab_compras';
 $datos_compras = $conexion->get_records() ?: [];
 
+$conexion->query = 'SELECT * FROM tbl_det_compras';
+$datos_detalles = $conexion->get_records() ?: [];
 
 // Obtener datos de los documentos fiscales
 $conexion->query = 'SELECT * FROM tbl_documentos_fiscales';
@@ -63,32 +64,9 @@ $datos_marcas = $conexion->get_records() ?: [];
 
 if (isset($_GET['id_cab_compra'])) {
   $id_cab_compra = $_GET['id_cab_compra'];
-  $conexion->query = "
-      SELECT 
-          tbl_cab_compras.id_cab_compra,
-          tbl_cab_compras.id_documento_fiscal,
-          tbl_documentos_fiscales.nombre AS nombre_documento_fiscal,
-          tbl_cab_compras.correlativo_documento_fiscal,
-          tbl_cab_compras.condicion_compra,
-          tbl_cab_compras.fecha_compra,
-          tbl_cab_compras.suma,
-          tbl_cab_compras.IVA,
-          tbl_cab_compras.percepcion,
-          tbl_productos.nombre AS nombre_producto,
-          tbl_det_compras.cantidad,
-          tbl_det_compras.precio_unitario,
-          tbl_proveedores.nombre AS nombre_proveedor,
-          tbl_categorias.nombre AS nombre_categoria,
-          tbl_marcas.nombre AS nombre_marca
-      FROM tbl_cab_compras
-      JOIN tbl_documentos_fiscales ON tbl_cab_compras.id_documento_fiscal = tbl_documentos_fiscales.id_documento_fiscal
-      JOIN tbl_det_compras ON tbl_cab_compras.id_cab_compra = tbl_det_compras.id_cab_compra
-      JOIN tbl_productos ON tbl_det_compras.id_producto = tbl_productos.id_producto
-      JOIN tbl_proveedores ON tbl_cab_compras.id_proveedor = tbl_proveedores.id_proveedor
-      JOIN tbl_categorias ON tbl_productos.id_categoria = tbl_categorias.id_categoria
-      JOIN tbl_marcas ON tbl_productos.id_marca = tbl_marcas.id_marca
-      WHERE tbl_cab_compras.id_cab_compra = ?
-  ";
+  $conexion->query = "SELECT id_cab_compra, id_documento_fiscal, correlativo_documento_fiscal, condicion_compra, fecha_compra, suma, IVA, percepcion, id_producto, cantidad, precio_unitario 
+                      FROM tbl_cab_compras 
+                      WHERE id_cab_compra = ?";
   $detalles = $conexion->get_records([$id_cab_compra]);
 
   // Enviar respuesta JSON
@@ -96,10 +74,46 @@ if (isset($_GET['id_cab_compra'])) {
   exit;
 }
 
+
+// Obtener detalles según el id_det_compra especificado
+if (isset($_GET['id_det_compra'])) {
+    $id_det_compra = $_GET['id_det_compra'];
+    
+    // Consulta filtrada por id_det_compra usando comillas simples para el parámetro
+    $conexion->query = "SELECT id_compra, id_cab_compra, id_producto, cantidad, precio_unitario 
+                        FROM tbl_det_compras 
+                        WHERE id_compra = '$id_det_compra'";
+    
+    // Ejecutar consulta sin parámetros
+    $detalles_compras = $conexion->get_records();
+    
+    // Obtener el registro específico
+    $detalle = !empty($detalles_compras) ? $detalles_compras[0] : null;
+    
+} else {
+    // Si no se especifica id_det_compra, obtener el primer registro
+    $conexion->query = "SELECT id_compra, id_cab_compra, id_producto, cantidad, precio_unitario 
+                        FROM tbl_det_compras 
+                        LIMIT 1";
+    $detalles_compras = $conexion->get_records();
+    $detalle = !empty($detalles_compras) ? $detalles_compras[0] : null;
+}
+
+// Ahora puedes usar los datos así:
+// echo $detalle['id_compra'];
+// echo $detalle['id_cab_compra'];
+// echo $detalle['id_producto'];
+// echo $detalle['cantidad'];
+// echo number_format($detalle['precio_unitario'], 2);
+?>
+
+
+<?php
+
 $query = "SELECT * FROM tbl_cab_compras WHERE id_documento_fiscal LIKE '%{$buscar}%'";
 $paginador = new Paginador();
 $paginador->query = $query;
-$paginador->registros_por_pag = 5;
+$paginador->registros_por_pag = 6;
 $paginador->pag_actual = @$_GET['pa'];
 $paginador->destino = "listar_compras.php";
 $paginador->variables_url = "buscar=" . @$_GET["buscar"];
@@ -121,9 +135,9 @@ $paginador->crear_paginador();
       color: #fff;
       margin: 0;
       padding: 0;
-      position: relative;
-    }
-    
+        position: relative;
+      }
+
     h2, h3 {
       text-align: center;
     }
@@ -191,32 +205,9 @@ $paginador->crear_paginador();
       document.getElementById("formulario-agregar").style.display = "block";
     }
 
-    function mostrarDetallesCompra(idCabCompra) {
-      document.getElementById("formulario-agregar").style.display = "none";
-      document.getElementById("detalles-compra").style.display = "block";
-
-      // Hacer una solicitud para obtener los detalles de la compra
-      fetch(`<?php echo $_SERVER['PHP_SELF']; ?>?id_cab_compra=${idCabCompra}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data) {
-              document.getElementById("detalle_id_compra").value = data.id_cab_compra || '';
-              document.getElementById("detalle_id_documento_fiscal").value = data.id_documento_fiscal || '';
-              document.getElementById("detalle_correlativo_documento_fiscal").value = data.correlativo_documento_fiscal || '';
-              document.getElementById("detalle_condicion_compra").value = data.condicion_compra || '';
-              document.getElementById("detalle_fecha_compra").value = data.fecha_compra || '';
-              document.getElementById("detalle_suma").value = data.suma || '';
-              document.getElementById("detalle_IVA").value = data.IVA || '';
-              document.getElementById("detalle_percepcion").value = data.percepcion || '';
-              document.getElementById("detalle_id_producto").value = data.id_producto || '';
-              document.getElementById("detalle_cantidad").value = data.cantidad || '';
-              document.getElementById("detalle_precio_unitario").value = data.precio_unitario || '';
-
-            } else {
-                alert('No se encontraron detalles para esta compra.');
-            }
-        })
-        .catch(error => console.error('Error al obtener los detalles de la compra:', error));
+        function mostrarDetallesCompra(idCabCompra) {
+        document.getElementById("formulario-agregar").style.display = "none";
+        document.getElementById("detalles-compra").style.display = "block";
     }
 
 
@@ -265,9 +256,10 @@ $paginador->crear_paginador();
         <td><?php echo $compra['fecha_compra']; ?></td>
         <td><?php echo number_format($compra['total'], 2); ?></td>
         <td>
+          <a href="?id_det_compra=<?php echo $compra['id_cab_compra']; ?>&pa=<?php echo $_GET["pa"] ?>">
         <button type="button" onclick="mostrarDetallesCompra(<?php echo $compra['id_cab_compra']; ?>);" style="padding: 5px 10px; background-color: #007bff; color: #fff; border: none; border-radius: 3px; cursor: pointer;">
     Detalles
-</button>
+</button></a>
 
         </td>
       </tr>
@@ -379,42 +371,51 @@ $paginador->crear_paginador();
                 <button type="submit">Guardar Compra</button>
             </div>
 
-      <!-- Sección de detalles de la compra seleccionada -->
+           <!-- Sección de detalles de la compra seleccionada -->
       <div>
-    <div id="detalles-compra" style="display: none;">
-        <h3 style="margin-top: 5px;">Detalles de la Compra Seleccionada</h3>
-        
-        <div class="inline-container">
-            <div class="inline">
-                <label for="detalle_id_compra">ID Compra:</label>
-                <input type="text" id="detalle_id_compra" name="detalle_id_compra" readonly style="height: 50%; width: 100%;">
-            </div>
-            <div class="inline">
-                <label for="detalle_id_cab_compra">ID Cabecera Compra:</label>
-                <input type="text" id="detalle_id_cab_compra" name="detalle_id_cab_compra" readonly style="height: 50%; width: 100%;">
-            </div>
-        </div>
-
-        <div class="inline-container">
-            <div class="inline">
-                <label for="detalle_id_producto">ID Producto:</label>
-                <input type="text" id="detalle_id_producto" name="detalle_id_producto" readonly style="height: 50%; width: 100%;">
-            </div>
-            <div class="inline">
-                <label for="detalle_cantidad">Cantidad:</label>
-                <input type="text" id="detalle_cantidad" name="detalle_cantidad" readonly style="height: 50%; width: 100%;">
-            </div>
-        </div>
-
-        <div class="inline-container">
-            <div class="inline">
-                <label for="detalle_precio_unitario">Precio Unitario:</label>
-                <input type="text" id="detalle_precio_unitario" name="detalle_precio_unitario" readonly style="height: 50%; width: 100%;">
-            </div>
-        </div>
-    </div>
-</div>
-
+          <div id="detalles-compra" style="display: <?php echo isset($_GET['id_det_compra']) ? 'block' : 'none'; ?>">
+              <h3 style="margin-top: 5px;">Detalles de la Compra Seleccionada</h3>
+              
+              <div class="inline-container">
+                  <div class="inline">
+                      <label for="detalle_id_compra">ID Compra:</label>
+                      <input type="text" id="detalle_id_compra" name="detalle_id_compra" readonly 
+                             style="height: 50%; width: 100%;" 
+                             value="<?php echo isset($detalle['id_compra']) ? $detalle['id_compra'] : 'Sin Registros'; ?>">
+                  </div>
+                  <div class="inline">
+                      <label for="detalle_id_cab_compra">ID Cabecera Compra:</label>
+                      <input type="text" id="detalle_id_cab_compra" name="detalle_id_cab_compra" readonly 
+                             style="height: 50%; width: 100%;" 
+                             value="<?php echo isset($detalle['id_cab_compra']) ? $detalle['id_cab_compra'] : 'Sin Registros'; ?>">
+                  </div>
+              </div>
+      
+              <div class="inline-container">
+                  <div class="inline">
+                      <label for="detalle_id_producto">ID Producto:</label>
+                      <input type="text" id="detalle_id_producto" name="detalle_id_producto" readonly 
+                             style="height: 50%; width: 100%;" 
+                             value="<?php echo isset($detalle['id_producto']) ? $detalle['id_producto'] : 'Sin Registros'; ?>">
+                  </div>
+                  <div class="inline">
+                      <label for="detalle_cantidad">Cantidad:</label>
+                      <input type="text" id="detalle_cantidad" name="detalle_cantidad" readonly 
+                             style="height: 50%; width: 100%;" 
+                             value="<?php echo isset($detalle['cantidad']) ? $detalle['cantidad'] : 'Sin Registros'; ?>">
+                  </div>
+              </div>
+      
+              <div class="inline-container">
+                  <div class="inline">
+                      <label for="detalle_precio_unitario">Precio Unitario:</label>
+                      <input type="text" id="detalle_precio_unitario" name="detalle_precio_unitario" readonly 
+                             style="height: 50%; width: 100%;" 
+                             value="<?php echo isset($detalle['precio_unitario']) ? $detalle['precio_unitario'] : 'Sin Registros'; ?>">
+                  </div>
+              </div>
+          </div>
+      </div>
     </div>
   </div>
 </form>
